@@ -2,242 +2,303 @@
 ; Author(s): Taratong Dolinsky & Dathan
 ; Modified: Horror Version with Screen Flash Effects
 ; Date: October 30, 2025
-
 INCLUDE Irvine32.inc
 
 .data
+msgUser BYTE "The deck groans, you hear a whisper. You received a card: ", 0
+msgUserCurrent BYTE "Your current card value is: ", 0
+msgComp BYTE "Your opponent has appeared with a card: ", 0
+msgCompCurrent BYTE "Opponent's current card value is: ", 0
+msgCard BYTE "Do you wish to draw another card? (Y/N): ", 0
+msgNewCard BYTE "You drew another card worth: ", 0
 
-; === Variables ===
-player1Total DWORD ?
-player2Total DWORD ?
-player1Losses DWORD 0
-player2Losses DWORD 0
-roundNum DWORD 1
-choice BYTE ?
+msgBust BYTE "You have exceeded 21... the chainsaw draws nearer.", 0
+msgDealerBust BYTE "Your opponent exceeded 21... the chainsaw has spared you!", 0
+msgWin BYTE "Your total is higher. The chainsaw has spared you!", 0
+msgLose BYTE "Your opponent has a higher total. The chainsaw draws nearer.", 0
+msgTie BYTE "Both totals are equal... The chainsaw remains still.", 0
 
-; === Horror Messages ===
-msgRound BYTE "=== RITUAL PHASE ", 0
-msgDraw BYTE "Do you dare pull another cursed card? (y/n): ", 0
-msgStay BYTE "You freeze... your trembling hand refuses to draw.", 0
-msgCard BYTE "The deck groans. It disgorges a corrupted fragment worth: ", 0
+msgEndBad BYTE "You died....", 0
+msgEndGood BYTE "You survived.... for now.", 0
+msgRedemption BYTE "The wins are equal... last round", 0
 
-msgPlayerTotal BYTE "Your corruption level: ", 0
-msgComputerTotal BYTE "The Entity's corruption level: ", 0
+msgFlash BYTE "VIOLENT FLASH", 0
 
-msgWin BYTE "A shriek erupts... the Entity recoils. You survive this phase.", 0
-msgLose BYTE "The Entity smiles. It FEEDS on your suffering.", 0
-msgTie BYTE "A dead silence... neither soul gains ground.", 0
-
-msgFinalDeath BYTE "The ritual completes. Your spirit is torn from your flesh.", 0
-msgFinalSurvive BYTE "You crawl from the chamber... but something follows.", 0
-
-msgAtmos BYTE "The candles sputter. Shadows twitch behind you.", 13,10,0
-msgFlash BYTE "** A VIOLENT FLASH OF DARKNESS OVERWHELMS YOU **", 0
-
-newline BYTE 13, 10, 0
+userWins DWORD 0
+compWins DWORD 0
+roundCount DWORD 0
 
 
 .code
 main PROC
     call Randomize
-    mov roundNum, 1
 
-GameLoop:
-    call Clrscr
-    mov eax, roundNum
-    cmp eax, 4
-    jge EndGame
+; ---------------------------------------------------------
+; 3-ROUND LOOP
+; ---------------------------------------------------------
+RoundLoop:
+    mov eax, roundCount
+    cmp eax, 3
+    je EvaluateGame
 
-    ; Reset totals each round
-    mov player1Total, 0
-    mov player2Total, 0
+    call ScreenFlash
+    call RunRound
 
-    call RoundStart
-    inc roundNum
-    jmp GameLoop
-
-EndGame:
-    call FinalResult
-    exit
-main ENDP
+    inc roundCount
+    jmp RoundLoop
 
 
-; === Screen Flash Effect ===
+; ---------------------------------------------------------
+; AFTER 3 ROUNDS
+; ---------------------------------------------------------
+EvaluateGame:
+    mov eax, userWins
+    mov ebx, compWins
+    cmp eax, ebx
+    je RedemptionRound
+
+    ja GoodEnding
+    jmp BadEnding
+
+
+; ---------------------------------------------------------
+; REDEMPTION ROUND
+; ---------------------------------------------------------
+RedemptionRound:
+    call CrLf
+    mov edx, OFFSET msgRedemption
+    call WriteString
+    call CrLf
+
+    call ScreenFlash
+
+    ; reset round counter to avoid skipping logic
+    mov roundCount, 0 
+
+    call RunRound
+
+    mov eax, userWins
+    mov ebx, compWins
+
+    cmp eax, ebx
+    ja GoodEnding
+    jb BadEnding
+    jmp BadEnding        ; still tied ? death
+
+
+; ---------------------------------------------------------
+; GOOD ENDING
+; ---------------------------------------------------------
+GoodEnding:
+    call CrLf
+    mov edx, OFFSET msgEndGood
+    call WriteString
+    call CrLf
+    jmp ExitProgram
+
+
+; ---------------------------------------------------------
+; BAD ENDING
+; ---------------------------------------------------------
+BadEnding:
+    call CrLf
+    mov edx, OFFSET msgEndBad
+    call WriteString
+    call CrLf
+    jmp ExitProgram
+
+
+; ---------------------------------------------------------
+; SCREEN FLASH (10 flashes)
+; ---------------------------------------------------------
 ScreenFlash PROC
-    ; Flash 1
+    mov ecx, 10
+
+FlashLoop:
     call Clrscr
     mov edx, OFFSET msgFlash
     call WriteString
-    call Crlf
-    mov eax, 150
+    call CrLf
+
+    mov eax, 50
     call Delay
 
-    ; Flash 2
     call Clrscr
-    mov eax, 100
+    mov eax, 50
     call Delay
 
-    ; Flash 3
-    call Clrscr
-    mov edx, OFFSET msgFlash
-    call WriteString
-    call Crlf
-    mov eax, 200
-    call Delay
+    loop FlashLoop
 
     call Clrscr
     ret
 ScreenFlash ENDP
 
 
-; === ROUND START ===
-RoundStart PROC
-    call ScreenFlash     ; Dramatic round intro
+; ---------------------------------------------------------
+; PLAY ONE ROUND
+; ---------------------------------------------------------
+RunRound PROC
+    mov ebx, 0       ; user total
+    mov edi, 0       ; dealer total
 
-    mov edx, OFFSET msgRound
-    call WriteString
-    mov eax, roundNum
-    call WriteDec
-    call Crlf
-    call Crlf
-
-    ; Initial cards
-    call DrawCard
-    mov player1Total, eax
-    call DrawCard
-    mov player2Total, eax
-
-PlayerTurn:
-    mov edx, OFFSET msgAtmos
+    ; PLAYER FIRST CARD
+    mov edx, OFFSET msgUser
     call WriteString
 
-    ; Show current total
-    mov edx, OFFSET msgPlayerTotal
-    call WriteString
-    mov eax, player1Total
-    call WriteDec
-    call Crlf
-
-    mov edx, OFFSET msgDraw
-    call WriteString
-    call ReadChar
-    mov choice, al
-    call Crlf
-
-    cmp choice, 'y'
-    jne PlayerStay
-
-    call DrawCard
-    add player1Total, eax
-    cmp player1Total, 21
-    jg PlayerBust
-    jmp PlayerTurn
-
-PlayerBust:
-    call ScreenFlash
-    mov edx, OFFSET msgLose
-    call WriteString
-    call Crlf
-    inc player1Losses
-    ret
-
-PlayerStay:
-    mov edx, OFFSET msgStay
-    call WriteString
-    call Crlf
-
-ComputerTurn:
-    mov eax, player2Total
-CompLoop:
-    cmp eax, 16
-    jge CompStay
-    call DrawCard
-    add player2Total, eax
-    mov eax, player2Total
-    jmp CompLoop
-
-CompStay:
-    mov edx, OFFSET msgComputerTotal
-    call WriteString
-    mov eax, player2Total
-    call WriteDec
-    call Crlf
-
-    call DetermineWinner
-    ret
-RoundStart ENDP
-
-
-; === DETERMINE WINNER ===
-DetermineWinner PROC
-    mov eax, player1Total
-    mov ebx, player2Total
-
-    cmp eax, 21
-    jg PlayerLose
-    cmp ebx, 21
-    jg PlayerWin
-
-    cmp eax, ebx
-    ja PlayerWin
-    jb PlayerLose
-
-Tie:
-    mov edx, OFFSET msgTie
-    call WriteString
-    call Crlf
-    ret
-
-PlayerWin:
-    mov edx, OFFSET msgWin
-    call WriteString
-    call Crlf
-    ret
-
-PlayerLose:
-    call ScreenFlash
-    mov edx, OFFSET msgLose
-    call WriteString
-    call Crlf
-    inc player1Losses
-    ret
-DetermineWinner ENDP
-
-
-; === DRAW CARD ===
-DrawCard PROC
     mov eax, 10
     call RandomRange
     inc eax
+    mov ebx, eax
+    call WriteDec
+    call CrLf
+
+    ; DEALER FIRST CARD
+    mov edx, OFFSET msgComp
+    call WriteString
+
+    mov eax, 10
+    call RandomRange
+    inc eax
+    mov edi, eax
+    call WriteDec
+    call CrLf
+
+
+; ---------------------------------------------------------
+; PLAYER TURN
+; ---------------------------------------------------------
+PlayerTurn:
     mov edx, OFFSET msgCard
     call WriteString
-    push eax
+    call ReadChar
+
+    cmp al, 'y'
+    je DrawPlayerCard
+    cmp al, 'Y'
+    je DrawPlayerCard
+    cmp al, 'n'
+    je DealerTurn
+    cmp al, 'N'
+    je DealerTurn
+    jmp PlayerTurn
+
+
+; ---------------------------------------------------------
+; PLAYER DRAWS
+; ---------------------------------------------------------
+DrawPlayerCard:
+    call CrLf
+    mov edx, OFFSET msgNewCard
+    call WriteString
+
+    mov eax, 10
+    call RandomRange
+    inc eax
+
+    mov esi, eax
     call WriteDec
-    call Crlf
-    pop eax
-    ret
-DrawCard ENDP
+    call CrLf
 
+    add ebx, esi
 
-; === FINAL RESULT ===
-FinalResult PROC
-    call Crlf
-    mov eax, player1Losses
-    cmp eax, 2
-    jg Died
-
-    mov edx, OFFSET msgFinalSurvive
+    mov edx, OFFSET msgUserCurrent
     call WriteString
-    call Crlf
-    ret
+    mov eax, ebx
+    call WriteDec
+    call CrLf
 
-Died:
-    call ScreenFlash
-    mov edx, OFFSET msgFinalDeath
+    cmp ebx, 21
+    jg PlayerBust
+
+    jmp PlayerTurn
+
+
+; ---------------------------------------------------------
+; PLAYER BUST
+; ---------------------------------------------------------
+PlayerBust:
+    mov edx, OFFSET msgBust
     call WriteString
-    call Crlf
+    call CrLf
+
+    inc compWins
     ret
-FinalResult ENDP
 
 
+; ---------------------------------------------------------
+; DEALER TURN
+; ---------------------------------------------------------
+DealerTurn:
+
+DealerLoop:
+    cmp edi, 17
+    jge CompareTotals
+
+    mov eax, 10
+    call RandomRange
+    inc eax
+
+    add edi, eax
+
+    ; >>> FIXED: NOW PRINT DEALER’S NEW TOTAL <<<
+    mov edx, OFFSET msgCompCurrent
+    call WriteString
+    mov eax, edi
+    call WriteDec
+    call CrLf
+
+    cmp edi, 21
+    jg DealerBust
+    jmp DealerLoop
+
+
+DealerBust:
+    mov edx, OFFSET msgDealerBust
+    call WriteString
+    call CrLf
+    inc userWins
+    ret
+
+
+; ---------------------------------------------------------
+; COMPARE TOTALS
+; ---------------------------------------------------------
+CompareTotals:
+    cmp ebx, edi
+    je RoundTie
+
+    cmp ebx, edi
+    jg RoundUserWin
+    jmp RoundDealerWin
+
+
+RoundUserWin:
+    mov edx, OFFSET msgWin
+    call WriteString
+    call CrLf
+    inc userWins
+    ret
+
+
+RoundDealerWin:
+    mov edx, OFFSET msgLose
+    call WriteString
+    call CrLf
+    inc compWins
+    ret
+
+
+RoundTie:
+    mov edx, OFFSET msgTie
+    call WriteString
+    call CrLf
+    ret
+
+RunRound ENDP
+
+
+ExitProgram:
+    exit
+
+main ENDP
 END main
