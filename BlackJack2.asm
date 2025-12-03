@@ -1,5 +1,5 @@
 ; ====== Horror Blackjack.asm ======
-; Author(s): Taratong Dolinsky & Dathan
+; Author(s) : Taratong Dolinsky& Dathan
 ; Modified: Horror Version with Screen Flash Effects
 ; Date: October 30, 2025
 INCLUDE Irvine32.inc
@@ -31,216 +31,226 @@ roundCount DWORD 0
 
 .code
 main PROC
-    call Randomize
+call Randomize
 
-; ---------------------------------------------------------
-; 3-ROUND LOOP
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
+; 3 - ROUND LOOP
+; -------------------------------------------------------- -
 RoundLoop:
-    mov eax, roundCount
-    cmp eax, 3
-    je EvaluateGame
+mov eax, roundCount
+cmp eax, 3
+je EvaluateGame
 
-    call ScreenFlash
-    call RunRound
+call ScreenFlash
+call RunRound
 
-    inc roundCount
-    jmp RoundLoop
+inc roundCount
+jmp RoundLoop
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; AFTER 3 ROUNDS
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 EvaluateGame:
-    mov eax, userWins
-    mov ebx, compWins
-    cmp eax, ebx
-    je RedemptionRound
+mov eax, userWins
+mov ebx, compWins
+cmp eax, ebx
+je RedemptionRound
 
-    ja GoodEnding
-    jmp BadEnding
+ja GoodEnding
+jmp BadEnding
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; REDEMPTION ROUND
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 RedemptionRound:
-    call CrLf
-    mov edx, OFFSET msgRedemption
-    call WriteString
-    call CrLf
+call CrLf
+mov edx, OFFSET msgRedemption
+call WriteString
+call CrLf
 
-    call ScreenFlash
+call ScreenFlash
 
-    ; reset round counter to avoid skipping logic
-    mov roundCount, 0 
+; reset round counter to avoid skipping logic
+mov roundCount, 0
 
-    call RunRound
+call RunRound
 
-    mov eax, userWins
-    mov ebx, compWins
+mov eax, userWins
+mov ebx, compWins
 
-    cmp eax, ebx
-    ja GoodEnding
-    jb BadEnding
-    jmp BadEnding        ; still tied ? death
+cmp eax, ebx
+ja GoodEnding
+jb BadEnding
+jmp BadEnding; still tied ? death
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; GOOD ENDING
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 GoodEnding:
-    call CrLf
-    mov edx, OFFSET msgEndGood
-    call WriteString
-    call CrLf
-    jmp ExitProgram
+call CrLf
+mov edx, OFFSET msgEndGood
+call WriteString
+call CrLf
+jmp ExitProgram
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; BAD ENDING
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 BadEnding:
-    call CrLf
-    mov edx, OFFSET msgEndBad
-    call WriteString
-    call CrLf
-    jmp ExitProgram
+call CrLf
+
+; --- BLOOD RED TEXT-- -
+mov eax, 4; color 4 = dark red / blood red
+call SetTextColor
+
+mov edx, OFFSET msgEndBad
+call WriteString
+
+; reset color back to default (light gray = 7)
+mov eax, 7
+call SetTextColor
+
+call CrLf
+jmp ExitProgram
 
 
-; ---------------------------------------------------------
-; SCREEN FLASH (10 flashes)
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
+; SCREEN FLASH(10 flashes)
+; -------------------------------------------------------- -
 ScreenFlash PROC
-    mov ecx, 10
+mov ecx, 10
 
 FlashLoop:
-    call Clrscr
-    mov edx, OFFSET msgFlash
-    call WriteString
-    call CrLf
+call Clrscr
+mov edx, OFFSET msgFlash
+call WriteString
+call CrLf
 
-    mov eax, 50
-    call Delay
+mov eax, 50
+call Delay
 
-    call Clrscr
-    mov eax, 50
-    call Delay
+call Clrscr
+mov eax, 50
+call Delay
 
-    loop FlashLoop
+loop FlashLoop
 
-    call Clrscr
-    ret
+call Clrscr
+ret
 ScreenFlash ENDP
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; PLAY ONE ROUND
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 RunRound PROC
-    mov ebx, 0       ; user total
-    mov edi, 0       ; dealer total
+mov ebx, 0; user total
+mov edi, 0; dealer total
 
-    ; PLAYER FIRST CARD
-    mov edx, OFFSET msgUser
-    call WriteString
+; PLAYER FIRST CARD
+mov edx, OFFSET msgUser
+call WriteString
 
-    mov eax, 10
-    call RandomRange
-    inc eax
-    mov ebx, eax
-    call WriteDec
-    call CrLf
+mov eax, 10
+call RandomRange
+inc eax
+mov ebx, eax
+call WriteDec
+call CrLf
 
-    ; DEALER FIRST CARD
-    mov edx, OFFSET msgComp
-    call WriteString
+; DEALER FIRST CARD
+mov edx, OFFSET msgComp
+call WriteString
 
-    mov eax, 10
-    call RandomRange
-    inc eax
-    mov edi, eax
-    call WriteDec
-    call CrLf
+mov eax, 10
+call RandomRange
+inc eax
+mov edi, eax
+call WriteDec
+call CrLf
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; PLAYER TURN
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 PlayerTurn:
-    mov edx, OFFSET msgCard
-    call WriteString
-    call ReadChar
+mov edx, OFFSET msgCard
+call WriteString
+call ReadChar
 
-    cmp al, 'y'
-    je DrawPlayerCard
-    cmp al, 'Y'
-    je DrawPlayerCard
-    cmp al, 'n'
-    je DealerTurn
-    cmp al, 'N'
-    je DealerTurn
-    jmp PlayerTurn
+cmp al, 'y'
+je DrawPlayerCard
+cmp al, 'Y'
+je DrawPlayerCard
+cmp al, 'n'
+je DealerTurn
+cmp al, 'N'
+je DealerTurn
+jmp PlayerTurn
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; PLAYER DRAWS
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 DrawPlayerCard:
-    call CrLf
-    mov edx, OFFSET msgNewCard
-    call WriteString
+call CrLf
+mov edx, OFFSET msgNewCard
+call WriteString
 
-    mov eax, 10
-    call RandomRange
-    inc eax
+mov eax, 10
+call RandomRange
+inc eax
 
-    mov esi, eax
-    call WriteDec
-    call CrLf
+mov esi, eax
+call WriteDec
+call CrLf
 
-    add ebx, esi
+add ebx, esi
 
-    mov edx, OFFSET msgUserCurrent
-    call WriteString
-    mov eax, ebx
-    call WriteDec
-    call CrLf
+mov edx, OFFSET msgUserCurrent
+call WriteString
+mov eax, ebx
+call WriteDec
+call CrLf
 
-    cmp ebx, 21
-    jg PlayerBust
+cmp ebx, 21
+jg PlayerBust
 
-    jmp PlayerTurn
+jmp PlayerTurn
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; PLAYER BUST
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 PlayerBust:
-    mov edx, OFFSET msgBust
-    call WriteString
-    call CrLf
+mov edx, OFFSET msgBust
+call WriteString
+call CrLf
 
-    inc compWins
-    ret
+inc compWins
+ret
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; DEALER TURN
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 DealerTurn:
 
 DealerLoop:
-    cmp edi, 17
-    jge CompareTotals
+cmp edi, 17
+jge CompareTotals
 
-    mov eax, 10
-    call RandomRange
-    inc eax
+mov eax, 10
+call RandomRange
+inc eax
 
-    add edi, eax
+add edi, eax
 
-    ; >>> FIXED: NOW PRINT DEALER’S NEW TOTAL <<<
+; >> > FIXED: NOW PRINT DEALER’S NEW TOTAL << <
     mov edx, OFFSET msgCompCurrent
     call WriteString
     mov eax, edi
@@ -252,53 +262,53 @@ DealerLoop:
     jmp DealerLoop
 
 
-DealerBust:
-    mov edx, OFFSET msgDealerBust
-    call WriteString
-    call CrLf
-    inc userWins
-    ret
+    DealerBust :
+mov edx, OFFSET msgDealerBust
+call WriteString
+call CrLf
+inc userWins
+ret
 
 
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 ; COMPARE TOTALS
-; ---------------------------------------------------------
+; -------------------------------------------------------- -
 CompareTotals:
-    cmp ebx, edi
-    je RoundTie
+cmp ebx, edi
+je RoundTie
 
-    cmp ebx, edi
-    jg RoundUserWin
-    jmp RoundDealerWin
-
-
-RoundUserWin:
-    mov edx, OFFSET msgWin
-    call WriteString
-    call CrLf
-    inc userWins
-    ret
+cmp ebx, edi
+jg RoundUserWin
+jmp RoundDealerWin
 
 
-RoundDealerWin:
-    mov edx, OFFSET msgLose
-    call WriteString
-    call CrLf
-    inc compWins
-    ret
+RoundUserWin :
+mov edx, OFFSET msgWin
+call WriteString
+call CrLf
+inc userWins
+ret
 
 
-RoundTie:
-    mov edx, OFFSET msgTie
-    call WriteString
-    call CrLf
-    ret
+RoundDealerWin :
+mov edx, OFFSET msgLose
+call WriteString
+call CrLf
+inc compWins
+ret
+
+
+RoundTie :
+mov edx, OFFSET msgTie
+call WriteString
+call CrLf
+ret
 
 RunRound ENDP
 
 
-ExitProgram:
-    exit
+ExitProgram :
+exit
 
 main ENDP
 END main
