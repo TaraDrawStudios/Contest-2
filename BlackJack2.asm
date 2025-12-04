@@ -1,5 +1,5 @@
 ; ====== Horror Blackjack.asm ======
-; Author(s) : Taratong Dolinsky& Dathan
+; Author(s) : Taratong Dolinsky & Dathan Dixon
 ; Modified: Horror Version with Screen Flash Effects
 ; Date: October 30, 2025
 INCLUDE Irvine32.inc
@@ -119,7 +119,7 @@ jmp ExitProgram
 
 
 ; -------------------------------------------------------- -
-; SCREEN FLASH(10 flashes)
+; SCREEN FLASH(10 flashes) (Violent Flashes)
 ; -------------------------------------------------------- -
 ScreenFlash PROC
 mov ecx, 10
@@ -312,3 +312,4 @@ exit
 
 main ENDP
 END main
+
