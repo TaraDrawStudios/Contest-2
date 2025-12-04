@@ -89,6 +89,7 @@ jmp BadEnding; still tied ? death
 ; -------------------------------------------------------- -
 ; GOOD ENDING
 ; -------------------------------------------------------- -
+; You survive ending
 GoodEnding:
 call CrLf
 mov edx, OFFSET msgEndGood
@@ -312,4 +313,5 @@ exit
 
 main ENDP
 END main
+
 
